@@ -7,6 +7,7 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "render:build": "npm install && npm run build",
     "test:db": "ts-node src/test-db.ts",
     "migrate": "ts-node src/migrate.ts"
   },
@@ -30,6 +31,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.20.0",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"

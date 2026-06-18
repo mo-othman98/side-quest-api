@@ -17,6 +17,7 @@ Test: http://localhost:4000/health
 
 ## Render deploy
 
+- **Root directory:** leave blank (not `src`)
 - **Build command:** `npm install && npm run build`
 - **Start command:** `npm start`
-- **Environment:** copy variables from `.env.example`
+- **Environment:** `DATABASE_URL` (Internal URL), `JWT_SECRET`, `NODE_ENV=production`
