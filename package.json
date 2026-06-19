@@ -7,7 +7,7 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "render:build": "npm install && npm run build",
+    "render:build": "npm install --include=dev && npm run build",
     "test:db": "ts-node src/test-db.ts",
     "migrate": "ts-node src/migrate.ts"
   },
@@ -19,6 +19,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "google-auth-library": "^9.15.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "openai": "^4.77.0",

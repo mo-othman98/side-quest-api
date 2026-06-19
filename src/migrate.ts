@@ -12,13 +12,21 @@ async function main() {
     process.exit(1);
   }
 
-  const sqlPath = path.join(__dirname, '../migrations/001_initial.sql');
-  const sql = fs.readFileSync(sqlPath, 'utf8');
+  const migrationsDir = path.join(__dirname, '../migrations');
+  const files = fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+
   const pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
 
   try {
-    await pool.query(sql);
-    console.log('✅ Migration complete');
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      console.log(`Running ${file}...`);
+      await pool.query(sql);
+    }
+    console.log('✅ All migrations complete');
   } catch (err) {
     console.error('❌ Migration failed:', err instanceof Error ? err.message : err);
     process.exit(1);

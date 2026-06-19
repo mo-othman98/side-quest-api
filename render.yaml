@@ -2,7 +2,8 @@ services:
   - type: web
     name: side-quest-api
     runtime: node
-    buildCommand: npm install && npm run build
+    # NODE_ENV=production skips devDependencies; TypeScript must be present for tsc
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV

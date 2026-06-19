@@ -18,6 +18,6 @@ Test: http://localhost:4000/health
 ## Render deploy
 
 - **Root directory:** leave blank (not `src`)
-- **Build command:** `npm install && npm run build`
+- **Build command:** `npm install --include=dev && npm run build` (required if `NODE_ENV=production` is set)
 - **Start command:** `npm start`
 - **Environment:** `DATABASE_URL` (Internal URL), `JWT_SECRET`, `NODE_ENV=production`
