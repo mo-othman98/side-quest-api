@@ -4,7 +4,13 @@ import { pool } from '../db';
 import { AuthedRequest, requireAuth, signAccessToken } from '../middleware/auth';
 import { generateVerificationToken, verificationExpiry } from '../utils/authTokens';
 import { sendVerificationEmail } from '../services/emailService';
-import { isGoogleAuthConfigured, verifyGoogleIdToken, verifyGoogleAccessToken, googleAuthErrorMessage } from '../services/googleAuthService';
+import {
+  isGoogleAuthConfigured,
+  verifyGoogleIdToken,
+  verifyGoogleAccessToken,
+  googleAuthErrorMessage,
+  GoogleProfile,
+} from '../services/googleAuthService';
 import { uniqueUsername } from '../utils/username';
 
 const router = Router();
