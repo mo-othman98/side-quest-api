@@ -28,6 +28,7 @@ export interface GoogleProfile {
   email: string;
   name: string;
   emailVerified: boolean;
+  picture?: string | null;
 }
 
 export function getGoogleAuthStatus() {
@@ -55,6 +56,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
     email: payload.email.toLowerCase(),
     name: payload.name?.trim() || payload.email.split('@')[0],
     emailVerified: payload.email_verified === true,
+    picture: payload.picture ?? null,
   };
 }
 
@@ -72,6 +74,7 @@ export async function verifyGoogleAccessToken(accessToken: string): Promise<Goog
     email?: string;
     name?: string;
     email_verified?: boolean;
+    picture?: string;
   };
 
   if (!data.sub || !data.email) {
@@ -83,6 +86,7 @@ export async function verifyGoogleAccessToken(accessToken: string): Promise<Goog
     email: data.email.toLowerCase(),
     name: data.name?.trim() || data.email.split('@')[0],
     emailVerified: data.email_verified === true,
+    picture: data.picture ?? null,
   };
 }
 
