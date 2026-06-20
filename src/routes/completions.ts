@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { pool } from '../db';
-import { AuthedRequest, requireAuth } from '../middleware/auth';
+import { AuthedRequest, optionalAuth, requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -38,6 +38,7 @@ interface CompletionRow {
   media_type: string;
   vote_count: number;
   completed_at: string;
+  has_voted?: boolean;
 }
 
 function toPublicCompletion(row: CompletionRow, baseUrl: string) {
@@ -57,28 +58,43 @@ function toPublicCompletion(row: CompletionRow, baseUrl: string) {
     mediaUrl: mediaPath,
     mediaType: row.media_type as 'photo' | 'video',
     voteCount: row.vote_count,
-    hasVoted: false,
+    hasVoted: !!row.has_voted,
     completedAt: row.completed_at,
   };
 }
 
-router.get('/feed', async (req, res) => {
+const COMPLETION_COLUMNS = `qc.id, qc.user_id, qc.username, qc.quest_id, qc.quest_title, qc.quest_category, qc.quest_city,
+              qc.xp_earned, qc.media_url, qc.media_type, qc.vote_count, qc.completed_at`;
+
+router.get('/feed', optionalAuth, async (req: AuthedRequest, res) => {
   if (!pool) {
     res.status(503).json({ error: 'Database not configured' });
     return;
   }
 
   const limit = Math.min(parseInt(String(req.query.limit ?? '100'), 10) || 100, 200);
+  const voterId = req.auth?.userId ?? null;
 
   try {
-    const result = await pool.query<CompletionRow>(
-      `SELECT id, user_id, username, quest_id, quest_title, quest_category, quest_city,
-              xp_earned, media_url, media_type, vote_count, completed_at
-       FROM quest_completions
-       ORDER BY completed_at DESC
-       LIMIT $1`,
-      [limit]
-    );
+    const result = voterId
+      ? await pool.query<CompletionRow>(
+          `SELECT ${COMPLETION_COLUMNS},
+                  EXISTS(
+                    SELECT 1 FROM completion_votes cv
+                    WHERE cv.completion_id = qc.id AND cv.user_id = $1
+                  ) AS has_voted
+           FROM quest_completions qc
+           ORDER BY qc.completed_at DESC
+           LIMIT $2`,
+          [voterId, limit]
+        )
+      : await pool.query<CompletionRow>(
+          `SELECT ${COMPLETION_COLUMNS}, false AS has_voted
+           FROM quest_completions qc
+           ORDER BY qc.completed_at DESC
+           LIMIT $1`,
+          [limit]
+        );
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json({
@@ -97,13 +113,17 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
   }
 
   try {
+    const userId = req.auth!.userId;
     const result = await pool.query<CompletionRow>(
-      `SELECT id, user_id, username, quest_id, quest_title, quest_category, quest_city,
-              xp_earned, media_url, media_type, vote_count, completed_at
-       FROM quest_completions
-       WHERE user_id = $1
-       ORDER BY completed_at DESC`,
-      [req.auth!.userId]
+      `SELECT ${COMPLETION_COLUMNS},
+              EXISTS(
+                SELECT 1 FROM completion_votes cv
+                WHERE cv.completion_id = qc.id AND cv.user_id = $1
+              ) AS has_voted
+       FROM quest_completions qc
+       WHERE qc.user_id = $2
+       ORDER BY qc.completed_at DESC`,
+      [userId, userId]
     );
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -115,6 +135,78 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
   } catch (err) {
     console.error('completions me failed:', err);
     res.status(500).json({ error: 'Failed to load your completions' });
+  }
+});
+
+router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res) => {
+  if (!pool) {
+    res.status(503).json({ error: 'Database not configured' });
+    return;
+  }
+
+  const completionId = req.params.id;
+  const userId = req.auth!.userId;
+
+  try {
+    const completionResult = await pool.query<{ user_id: string; vote_count: number }>(
+      `SELECT user_id, vote_count FROM quest_completions WHERE id = $1`,
+      [completionId]
+    );
+    const completion = completionResult.rows[0];
+    if (!completion) {
+      res.status(404).json({ error: 'Completion not found' });
+      return;
+    }
+
+    if (completion.user_id === userId) {
+      res.status(400).json({ error: 'You cannot vote on your own completion' });
+      return;
+    }
+
+    const existingVote = await pool.query(
+      `SELECT id FROM completion_votes WHERE user_id = $1 AND completion_id = $2`,
+      [userId, completionId]
+    );
+
+    if (existingVote.rows.length > 0) {
+      await pool.query(
+        `DELETE FROM completion_votes WHERE user_id = $1 AND completion_id = $2`,
+        [userId, completionId]
+      );
+      const updated = await pool.query<{ vote_count: number }>(
+        `UPDATE quest_completions
+         SET vote_count = GREATEST(vote_count - 1, 0)
+         WHERE id = $1
+         RETURNING vote_count`,
+        [completionId]
+      );
+
+      res.json({
+        hasVoted: false,
+        voteCount: updated.rows[0]?.vote_count ?? Math.max(completion.vote_count - 1, 0),
+      });
+      return;
+    }
+
+    await pool.query(
+      `INSERT INTO completion_votes (user_id, completion_id) VALUES ($1, $2)`,
+      [userId, completionId]
+    );
+    const updated = await pool.query<{ vote_count: number }>(
+      `UPDATE quest_completions
+       SET vote_count = vote_count + 1
+       WHERE id = $1
+       RETURNING vote_count`,
+      [completionId]
+    );
+
+    res.json({
+      hasVoted: true,
+      voteCount: updated.rows[0]?.vote_count ?? completion.vote_count + 1,
+    });
+  } catch (err) {
+    console.error('completion vote failed:', err);
+    res.status(500).json({ error: 'Failed to save vote' });
   }
 });
 

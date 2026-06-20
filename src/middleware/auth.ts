@@ -40,3 +40,24 @@ export function signAccessToken(payload: AuthPayload): string {
   }
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 }
+
+export function optionalAuth(req: AuthedRequest, _res: Response, next: NextFunction): void {
+  if (!JWT_SECRET) {
+    next();
+    return;
+  }
+
+  const header = req.header('authorization');
+  if (!header?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  try {
+    req.auth = jwt.verify(header.slice(7), JWT_SECRET) as AuthPayload;
+  } catch {
+    // Ignore invalid tokens for optional auth routes.
+  }
+
+  next();
+}
