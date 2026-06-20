@@ -4,7 +4,7 @@ import { pool } from '../db';
 import { AuthedRequest, requireAuth, signAccessToken } from '../middleware/auth';
 import { generateVerificationToken, verificationExpiry } from '../utils/authTokens';
 import { sendVerificationEmail } from '../services/emailService';
-import { isGoogleAuthConfigured, verifyGoogleIdToken } from '../services/googleAuthService';
+import { isGoogleAuthConfigured, verifyGoogleIdToken, verifyGoogleAccessToken, googleAuthErrorMessage } from '../services/googleAuthService';
 import { uniqueUsername } from '../utils/username';
 
 const router = Router();
@@ -302,14 +302,26 @@ router.post('/google', async (req, res) => {
     return;
   }
 
-  const { idToken } = req.body ?? {};
-  if (!idToken?.trim()) {
-    res.status(400).json({ error: 'idToken is required' });
+  const { idToken, accessToken } = req.body ?? {};
+  if (!idToken?.trim() && !accessToken?.trim()) {
+    res.status(400).json({ error: 'idToken or accessToken is required' });
     return;
   }
 
   try {
-    const profile = await verifyGoogleIdToken(idToken.trim());
+    let profile: GoogleProfile;
+
+    if (idToken?.trim() && accessToken?.trim()) {
+      try {
+        profile = await verifyGoogleIdToken(idToken.trim());
+      } catch {
+        profile = await verifyGoogleAccessToken(accessToken.trim());
+      }
+    } else if (idToken?.trim()) {
+      profile = await verifyGoogleIdToken(idToken.trim());
+    } else {
+      profile = await verifyGoogleAccessToken(accessToken!.trim());
+    }
 
     const byGoogle = await pool.query<UserRow>(
       `SELECT id, username, email, bio, xp, level, quests_completed, email_verified, created_at
@@ -372,7 +384,7 @@ router.post('/google', async (req, res) => {
     res.status(201).json({ token, user: toPublicUser(user) });
   } catch (err) {
     console.error('google auth failed:', err);
-    res.status(401).json({ error: 'Google sign-in failed' });
+    res.status(401).json({ error: googleAuthErrorMessage(err) });
   }
 });
 

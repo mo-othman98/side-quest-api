@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { pool } from './db';
 import authRouter from './routes/auth';
+import { getGoogleAuthStatus } from './services/googleAuthService';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.get('/health', (_req, res) => {
     database: !!pool,
     auth: !!process.env.JWT_SECRET,
     googleAuth: !!process.env.GOOGLE_CLIENT_ID,
+    google: getGoogleAuthStatus(),
   });
 });
 
