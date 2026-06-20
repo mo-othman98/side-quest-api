@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { pool } from './db';
 import authRouter from './routes/auth';
+import completionsRouter from './routes/completions';
 import { getGoogleAuthStatus } from './services/googleAuthService';
 
 dotenv.config();
@@ -21,6 +23,7 @@ const VALID_CATEGORIES = new Set([
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -34,6 +37,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/completions', completionsRouter);
 
 app.post('/quest-submissions', async (req, res) => {
   if (!pool) {
