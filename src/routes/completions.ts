@@ -4,6 +4,7 @@ import path from 'path';
 import multer from 'multer';
 import { pool } from '../db';
 import { AuthedRequest, optionalAuth, requireAuth } from '../middleware/auth';
+import { isCloudinaryConfigured, uploadLocalFile } from '../services/mediaStorage';
 
 const router = Router();
 
@@ -242,9 +243,15 @@ router.post('/', requireAuth, upload.single('proof'), async (req: AuthedRequest,
 
   const xp = parseInt(String(xpEarned ?? '0'), 10) || 0;
   const type = mediaType === 'video' ? 'video' : 'photo';
-  const mediaPath = `/uploads/${req.file.filename}`;
 
   try {
+    let mediaPath: string;
+    if (isCloudinaryConfigured()) {
+      mediaPath = await uploadLocalFile(req.file.path, 'completions');
+    } else {
+      mediaPath = `/uploads/${req.file.filename}`;
+    }
+
     const userResult = await pool.query<{ username: string; xp: number; quests_completed: number }>(
       `SELECT username, xp, quests_completed FROM users WHERE id = $1`,
       [req.auth!.userId]

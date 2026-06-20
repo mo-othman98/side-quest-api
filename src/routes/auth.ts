@@ -11,6 +11,11 @@ import { isGoogleAuthConfigured } from '../services/googleAuthService';
 import { resolveGoogleProfile, googleAuthErrorMessage } from '../utils/googleProfile';
 import { uniqueUsername } from '../utils/username';
 import { validateUsername } from '../utils/validateUsername';
+import {
+  deleteCloudinaryAsset,
+  isCloudinaryConfigured,
+  uploadLocalFile,
+} from '../services/mediaStorage';
 
 const router = Router();
 const BCRYPT_ROUNDS = 12;
@@ -346,9 +351,11 @@ router.post('/me/avatar', requireAuth, (req: AuthedRequest, res, next) => {
     return;
   }
 
-  const avatarPath = `/uploads/avatars/${req.file.filename}`;
-
   try {
+    const avatarPath = isCloudinaryConfigured()
+      ? await uploadLocalFile(req.file.path, 'avatars')
+      : `/uploads/avatars/${req.file.filename}`;
+
     const current = await pool.query<{ avatar_url: string | null }>(
       `SELECT avatar_url FROM users WHERE id = $1`,
       [req.auth!.userId]
@@ -372,6 +379,8 @@ router.post('/me/avatar', requireAuth, (req: AuthedRequest, res, next) => {
     if (previous?.startsWith('/uploads/avatars/')) {
       const oldPath = path.join(__dirname, '../..', previous);
       fs.unlink(oldPath, () => undefined);
+    } else {
+      await deleteCloudinaryAsset(previous);
     }
 
     res.json({ user: toPublicUser(user, `${req.protocol}://${req.get('host')}`) });

@@ -9,6 +9,7 @@ import leaderboardRouter from './routes/leaderboard';
 import messagesRouter from './routes/messages';
 import usersRouter from './routes/users';
 import { getGoogleAuthStatus } from './services/googleAuthService';
+import { isCloudinaryConfigured } from './services/mediaStorage';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.get('/health', (_req, res) => {
     auth: !!process.env.JWT_SECRET,
     googleAuth: !!process.env.GOOGLE_CLIENT_ID,
     google: getGoogleAuthStatus(),
+    mediaStorage: isCloudinaryConfigured() ? 'cloudinary' : 'local',
   });
 });
 
