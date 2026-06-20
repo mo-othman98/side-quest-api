@@ -89,21 +89,3 @@ export async function verifyGoogleAccessToken(accessToken: string): Promise<Goog
 export function isGoogleAuthConfigured(): boolean {
   return getAllowedAudiences().length > 0;
 }
-
-export function googleAuthErrorMessage(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-
-  if (/audience|recipient/i.test(message)) {
-    return 'Server rejected the Google token. On Render, add GOOGLE_IOS_CLIENT_ID to match your iOS OAuth client.';
-  }
-
-  if (/google_id|password_hash|null value in column/i.test(message)) {
-    return 'Database needs updating. Run migrations on the production database.';
-  }
-
-  if (/invalid google token|invalid google access token/i.test(message)) {
-    return 'Google session expired or invalid. Please try again.';
-  }
-
-  return 'Google sign-in failed';
-}

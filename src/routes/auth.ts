@@ -4,13 +4,8 @@ import { pool } from '../db';
 import { AuthedRequest, requireAuth, signAccessToken } from '../middleware/auth';
 import { generateVerificationToken, verificationExpiry } from '../utils/authTokens';
 import { sendVerificationEmail } from '../services/emailService';
-import {
-  isGoogleAuthConfigured,
-  verifyGoogleIdToken,
-  verifyGoogleAccessToken,
-  googleAuthErrorMessage,
-  GoogleProfile,
-} from '../services/googleAuthService';
+import { isGoogleAuthConfigured } from '../services/googleAuthService';
+import { resolveGoogleProfile, googleAuthErrorMessage } from '../utils/googleProfile';
 import { uniqueUsername } from '../utils/username';
 
 const router = Router();
@@ -315,19 +310,7 @@ router.post('/google', async (req, res) => {
   }
 
   try {
-    let profile: GoogleProfile;
-
-    if (idToken?.trim() && accessToken?.trim()) {
-      try {
-        profile = await verifyGoogleIdToken(idToken.trim());
-      } catch {
-        profile = await verifyGoogleAccessToken(accessToken.trim());
-      }
-    } else if (idToken?.trim()) {
-      profile = await verifyGoogleIdToken(idToken.trim());
-    } else {
-      profile = await verifyGoogleAccessToken(accessToken!.trim());
-    }
+    const profile = await resolveGoogleProfile(idToken, accessToken);
 
     const byGoogle = await pool.query<UserRow>(
       `SELECT id, username, email, bio, xp, level, quests_completed, email_verified, created_at
