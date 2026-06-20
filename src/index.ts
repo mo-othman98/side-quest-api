@@ -5,6 +5,7 @@ import path from 'path';
 import { pool } from './db';
 import authRouter from './routes/auth';
 import completionsRouter from './routes/completions';
+import leaderboardRouter from './routes/leaderboard';
 import { getGoogleAuthStatus } from './services/googleAuthService';
 
 dotenv.config();
@@ -38,6 +39,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter);
 app.use('/completions', completionsRouter);
+app.use('/leaderboard', leaderboardRouter);
 
 app.post('/quest-submissions', async (req, res) => {
   if (!pool) {
