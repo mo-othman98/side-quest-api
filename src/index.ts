@@ -10,6 +10,7 @@ import messagesRouter from './routes/messages';
 import usersRouter from './routes/users';
 import { getGoogleAuthStatus } from './services/googleAuthService';
 import { isCloudinaryConfigured } from './services/mediaStorage';
+import { sendQuestSubmissionNotification } from './services/emailService';
 
 dotenv.config();
 
@@ -82,7 +83,22 @@ app.post('/quest-submissions', async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const row = result.rows[0];
+
+    void sendQuestSubmissionNotification({
+      id: row.id,
+      title: title.trim(),
+      description: description.trim(),
+      locationName: locationName.trim(),
+      city,
+      category,
+      username: username ?? null,
+      userId: userId ?? null,
+    }).catch((err) => {
+      console.error('quest submission notification failed:', err);
+    });
+
+    res.status(201).json({ id: row.id, status: row.status });
   } catch (err) {
     console.error('quest-submissions insert failed:', err);
     res.status(500).json({ error: 'Failed to save quest submission' });
